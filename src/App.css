@@ -1,22 +1,27 @@
 .App {
+  display: flex;
+}
+
+.App-Board {
+  font-size: 3em;
+  border-spacing: 0;
+  flex-shrink: 0;
+}
+
+.App-Board td {
+  height: 66px;
+  width: 66px;
   text-align: center;
 }
 
-.App-logo {
-  height: 40vmin;
+.black-square {
+  background: #884400;
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+.white-square {
+  background: #ffa54b;
 }
 
-.App-link {
-  color: #09d3ac;
+.App-moves {
+  width: 100%;
 }
