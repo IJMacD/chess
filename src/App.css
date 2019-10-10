@@ -25,3 +25,17 @@
 .App-moves {
   width: 100%;
 }
+
+.App-error {
+  position: absolute;
+  background: rgba(255,0,0,0.5);
+  border: 1px solid red;
+  color: red;
+  left: 20px;
+  bottom: 20px;
+  right: 20px;
+  border-radius: 5px;
+  padding: 4px;
+  text-align: center;
+  font-weight: bold;
+}

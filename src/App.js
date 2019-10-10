@@ -1,43 +1,62 @@
 import React from 'react';
 import './App.css';
+import { makeBoard, fileNumberToName, pieceNameToSymbol, rankNameToNumber, fileNameToNumber, rankNumberToName, symbolToColour, pieceSymbolToName, positionFromNames, positionFromNumbers } from './chess';
 
 const MOVE_HISTORY = "chess_move_history";
 
-function makeBoard() {
-  return [
-    ['♜','♞','♝','♚','♛','♝','♞','♜'],
-    ['♟','♟','♟','♟','♟','♟','♟','♟'],
-    ['','','','','','','',''],
-    ['','','','','','','',''],
-    ['','','','','','','',''],
-    ['','','','','','','',''],
-    ['♙','♙','♙','♙','♙','♙','♙','♙'],
-    ['♖','♘','♗','♔','♕','♗','♘','♖']
-  ];
-}
+/** @typedef {import('./chess').Position} Position */
 
 export default class App extends React.Component {
   constructor (props) {
     super(props);
 
+    const moves = localStorage.getItem(MOVE_HISTORY) || "";
+
     this.state = {
-      moves: localStorage.getItem(MOVE_HISTORY) || "",
+      board: this.doMoves(moves),
+      moves,
+      error: null,
+    };
+  }
+
+  doMoves (moves) {
+    const re = /^\d+\. *([^ ]+)(?: +([^ ]+))?/
+    const moveList = moves.split("\n").filter(m => re.test(m));
+
+    const board = makeBoard();
+
+    try {
+      for (const move of moveList) {
+        const [ _, whiteMove, blackMove] = re.exec(move);
+
+        movePiece(board, whiteMove, false);
+
+        if (blackMove) {
+          movePiece(board, blackMove, true);
+        }
+      }
+    } catch (error) {
+      this.setState({ error });
+    }
+
+    return board;
+  }
+
+  componentDidUpdate (prevProps, prevState) {
+    localStorage.setItem(MOVE_HISTORY, this.state.moves);
+    if (this.state.moves !== prevState.moves) {
+      const board = this.doMoves(this.state.moves);
+      this.setState({ board });
     }
   }
 
-  componentDidUpdate () {
-    localStorage.setItem(MOVE_HISTORY, this.state.moves);
-  }
-
   render () {
-    const board = doMoves(makeBoard(), this.state.moves);
-
     return (
       <div className="App">
         <table className="App-Board">
           <tbody>
           {
-            board.map((rank,rankNumber) => (
+            this.state.board.map((rank,rankNumber) => (
               <tr key={rankNumber + 1}>
                 {
                   rank.map((piece, fileNumber) => {
@@ -50,90 +69,90 @@ export default class App extends React.Component {
           }
           </tbody>
         </table>
-        <textarea className="App-moves" value={this.state.moves} onChange={e=>this.setState({ moves: e.target.value })} />
+        <textarea className="App-moves" value={this.state.moves} onChange={e=>this.setState({ moves: e.target.value, error: null })} />
+        { this.state.error && <div className="App-error">{ this.state.error.message }</div> }
       </div>
     );
   }
 }
 
-/** @param {number} fileNumber */
-function fileNumberToName (fileNumber) {
-  return String.fromCharCode(0x61 + fileNumber);
-}
 
-/** @param {string} fileName */
-function fileNameToNumber (fileName) {
-  return fileName.charCodeAt(0) - 0x61;
-}
-
-/** @param {number} rankNumber */
-function rankNumberToName (rankNumber) {
-  return String(8 - rankNumber);
-}
-
-/** @param {string} rankName */
-function rankNameToNumber (rankName) {
-  return 8 - +rankName;
-}
-
-function pieceNameToSymbol (pieceName, black=false) {
-  switch (pieceName) {
-    case "K": return black ? "♛" : "♕";
-    case "Q": return black ? "♚" : "♔";
-    case "B": return black ? "♝" : "♗";
-    case "N": return black ? "♞" : "♘";
-    case "R": return black ? "♜" : "♖";
-    default: return black ? "♟" : "♙";
-  }
-}
-
-function doMoves (board, moves) {
-  const re = /^\d+\. *([^ ]+)(?: +([^ ]+))?/
-  const moveList = moves.split("\n").filter(m => re.test(m));
-
-  try {
-    for (const move of moveList) {
-      const [ _, whiteMove, blackMove] = re.exec(move);
-
-      movePiece(board, whiteMove, false);
-
-      if (blackMove) {
-        movePiece(board, blackMove, true);
-      }
-    }
-  } catch (e) {
-    console.error(e);
-  }
-
-  return board;
-}
 
 const reMove = /([KQBNR]?)([a-h]?)([1-8]?)([a-h])([1-8])/;
 function movePiece (board, move, isBlack=false) {
   if (reMove.test(move)) {
-    let [__, piece, fromFileName, fromRankName, toFileName, toRankName] = reMove.exec(move);
+    let [_, piece, fromFileName, fromRankName, toFileName, toRankName] = reMove.exec(move);
 
     const symbol = pieceNameToSymbol(piece, isBlack);
 
-    if (!fromFileName || !fromRankName) {
-      const pos = findPiece(board, symbol, fromFileName || toFileName, fromRankName);
-      if (!pos) {
-        throw Error("Can't find piece");
+    let fromPos;
+    const toPos = positionFromNames(toFileName, toRankName);
+
+    if (fromFileName && fromRankName) {
+      fromPos = positionFromNames(fromFileName, fromRankName);
+
+      if (!isValidMove(board, fromPos, toPos)) {
+        throw Error(`Invalid Move: ${symbol}: ${fromFileName}${fromRankName} -> ${toFileName}${toRankName}`);
       }
-      fromFileName = pos.fileName;
-      fromRankName = pos.rankName;
+    } else {
+      fromPos = findPieces(board, symbol, fromFileName, fromRankName).find(p => isValidMove(board, p, toPos));
+
+      if (!fromPos) {
+        throw Error(`Invalid Move: ${symbol}: -> ${toFileName}${toRankName}`);
+      }
+
+      fromFileName = fromPos.fileName;
+      fromRankName = fromPos.rankName;
     }
 
-    const fromFileNumber = fileNameToNumber(fromFileName);
-    const fromRankNumber = rankNameToNumber(fromRankName);
-    const toFileNumber = fileNameToNumber(toFileName);
-    const toRankNumber = rankNameToNumber(toRankName);
-
-    board[fromRankNumber][fromFileNumber] = '';
-    board[toRankNumber][toFileNumber] = symbol;
-
-    // console.log(`${symbol}: ${fromFileName}${fromRankName} -> ${toFileName}${toRankName}`);
+    board[fromPos.rankNumber][fromPos.fileNumber] = '';
+    board[toPos.rankNumber][toPos.fileNumber] = symbol;
   }
+}
+
+/**
+ *
+ * @param {string[][]} board
+ * @param {string} symbol
+ * @returns {Position[]}
+ */
+function findPieces (board, symbol, fileName="", rankName="") {
+  const out = [];
+
+  if (fileName && rankName) {
+    const pos = positionFromNames(fileName, rankName);
+
+    if (board[pos.rankNumber][pos.fileNumber]) {
+      out.push(pos);
+    }
+  } else if (fileName) {
+    const fileNumber = fileNameToNumber(fileName);
+
+    for (let rankNumber = 0; rankNumber < 8; rankNumber++) {
+      if (board[rankNumber][fileNumber] === symbol) {
+        out.push(positionFromNumbers(fileNumber, rankNumber));
+      }
+    }
+  } else if (rankName) {
+    const rankNumber = rankNameToNumber(rankName);
+
+    for (let fileNumber = 0; fileNumber < 8; fileNumber++) {
+      if (board[rankNumber][fileNumber] === symbol) {
+        out.push(positionFromNumbers(fileNumber, rankNumber));
+      }
+    }
+  }
+  else {
+    for (let rankNumber = 0; rankNumber < 8; rankNumber++) {
+      for (let fileNumber = 0; fileNumber < 8; fileNumber++) {
+        if (board[rankNumber][fileNumber] === symbol) {
+          out.push(positionFromNumbers(fileNumber, rankNumber));
+        }
+      }
+    }
+  }
+
+  return out;
 }
 
 /**
@@ -142,11 +161,16 @@ function movePiece (board, move, isBlack=false) {
  * @param {string} symbol
  * @param {string} rankName
  * @param {string} fileName
+ * @param {string} toFileName
+ * @param {string} toRankName
+ * @return {Position}
  */
-function findPiece (board, symbol, fileName="", rankName="") {
+function findPiece (board, symbol, fileName="", rankName="", toFileName="", toRankName="") {
   const out = {
     rankName,
     fileName,
+    rankNumber: rankNameToNumber(rankName),
+    fileNumber: fileNameToNumber(fileName),
   };
 
   if (!fileName && rankName) {
@@ -156,6 +180,7 @@ function findPiece (board, symbol, fileName="", rankName="") {
 
     for (let rankNumber = 0; rankNumber < 8; rankNumber++) {
       if (board[rankNumber][fileNumber] === symbol) {
+        out.rankNumber = rankNumber;
         out.rankName = rankNumberToName(rankNumber);
         break;
       }
@@ -164,6 +189,8 @@ function findPiece (board, symbol, fileName="", rankName="") {
     for (let rankNumber = 0; rankNumber < 8; rankNumber++) {
       const fileNumber = board[rankNumber].indexOf(symbol);
       if (fileNumber >= 0) {
+        out.rankNumber = rankNumber;
+        out.fileNumber = fileNumber;
         out.fileName = fileNumberToName(fileNumber);
         out.rankName = rankNumberToName(rankNumber);
         break;
@@ -176,4 +203,76 @@ function findPiece (board, symbol, fileName="", rankName="") {
   }
 
   return out;
+}
+
+/**
+ *
+ * @param {string[][]} board
+ * @param {Position} from
+ * @param {Position} to
+ */
+function isValidMove (board, from, to) {
+  const fromPieceSymbol = board[from.rankNumber][from.fileNumber];
+  const toPieceSymbol = board[to.rankNumber][to.fileNumber];
+
+  if (!fromPieceSymbol) return false;
+
+  const fromColour = symbolToColour(fromPieceSymbol);
+  const toColour = symbolToColour(toPieceSymbol);
+
+  if (fromColour === toColour) return false;
+
+  const fromPieceName = pieceSymbolToName(fromPieceSymbol);
+
+  const deltaRank = to.rankNumber - from.rankNumber;
+  const deltaFile = to.fileNumber - from.fileNumber;
+  const absDeltaRank = Math.abs(deltaRank);
+  const absDeltaFile = Math.abs(deltaFile);
+
+  switch (fromPieceName) {
+    //pawn
+    case "": {
+      // When taking file must be different
+      if (toPieceSymbol) {
+        return absDeltaFile === 1 && absDeltaRank === 1;
+      }
+
+      // Unless taking a piece pawns must remain in the same file
+      if (from.fileName !== to.fileName) return false;
+
+      if (fromColour === "white") {
+        if (from.rankName === "2" && deltaRank === -2) return true;
+        return deltaRank === -1 && Math.abs(deltaFile) <= 1;
+      } else if (fromColour === "black") {
+        if (from.rankName === "7" && deltaRank === 2) return true;
+        return deltaRank === 1 && Math.abs(deltaFile) <= 1;
+      }
+
+      break;
+    }
+    // Queen
+    case "Q": {
+      return isPathClear(board, from, to) && (deltaRank === 0 || deltaFile === 0 || absDeltaRank === absDeltaFile);
+    }
+    // Knight
+    case "N": {
+      return (absDeltaFile === 2 && absDeltaRank === 1) || (absDeltaFile === 1 && absDeltaRank === 2);
+    }
+    // Rook
+    case "R": {
+      return isPathClear(board, from, to) && (deltaRank === 0 || deltaFile === 0);
+    }
+    // King
+    case "K": {
+      return absDeltaRank <= 1 && absDeltaFile <= 1;
+    }
+    // Bishop
+    case "B": {
+      return isPathClear(board, from, to) && absDeltaRank === absDeltaFile;
+    }
+  }
+}
+
+function isPathClear (board, from, to) {
+  return true;
 }
