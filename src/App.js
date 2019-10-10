@@ -4,6 +4,8 @@ import { makeBoard, fileNumberToName, movePiece } from './chess';
 
 const MOVE_HISTORY = "chess_move_history";
 
+const MOVE_REGEX = /\d+\. *([^ ]+)(?: +([^ ]+))?/g;
+
 /** @typedef {import('./chess').Position} Position */
 
 export default class App extends React.Component {
@@ -16,29 +18,32 @@ export default class App extends React.Component {
       board: makeBoard(),
       moves,
       error: null,
+      moveNumber: 0,
     };
 
     setTimeout(() => this.doMoves(moves), 10);
   }
 
   doMoves (moves) {
-    const re = /\d+\. *([^ ]+)(?: +([^ ]+))?/g
+    MOVE_REGEX.lastIndex = 0;
     const board = makeBoard();
 
     let move;
-    let i = 1;
+    let i = 0;
 
     try {
-      while (move = re.exec(moves)) {
+      while (move = MOVE_REGEX.exec(moves)) {
         const [ _, whiteMove, blackMove] = move;
+
+        if (++i > this.state.moveNumber) {
+          break;
+        }
 
         movePiece(board, whiteMove, false);
 
         if (blackMove) {
           movePiece(board, blackMove, true);
         }
-
-        i++;
       }
     } catch (error) {
       error.message = `Move ${i} - ${error.message}`;
@@ -50,12 +55,21 @@ export default class App extends React.Component {
 
   componentDidUpdate (prevProps, prevState) {
     localStorage.setItem(MOVE_HISTORY, this.state.moves);
+
     if (this.state.moves !== prevState.moves) {
+      this.setState({ moveNumber: countMoves(this.state.moves) });
+    }
+
+    if (this.state.moveNumber !== prevState.moveNumber) {
       this.doMoves(this.state.moves);
     }
   }
 
   render () {
+    const { moves, moveNumber } = this.state;
+
+    const moveCount = countMoves(moves);
+
     return (
       <div className="App">
         <table className="App-Board">
@@ -74,9 +88,32 @@ export default class App extends React.Component {
           }
           </tbody>
         </table>
-        <textarea className="App-moves" value={this.state.moves} onChange={e=>this.setState({ moves: e.target.value, error: null })} />
+        <div className="App-moves">
+          <div>
+            <button onClick={() => this.setState({ moveNumber: 0 })} disabled={moveNumber <= 0}>First</button>
+            <button onClick={() => this.setState({ moveNumber: moveNumber - 1 })} disabled={moveNumber <= 0}>Prev</button>
+            <button onClick={() => this.setState({ moveNumber: moveNumber + 1 })} disabled={moveNumber >= moveCount}>Next</button>
+            <button onClick={() => this.setState({ moveNumber: moveCount })} disabled={moveNumber >= moveCount}>Last</button>
+            Move number: {moveNumber}
+          </div>
+          <textarea value={moves} onChange={e=>this.setState({ moves: e.target.value, error: null })} />
+        </div>
         { this.state.error && <div className="App-error">{ this.state.error.message }</div> }
       </div>
     );
   }
+}
+
+function countMoves(moves) {
+  MOVE_REGEX.lastIndex = 0;
+  return matchAll(MOVE_REGEX, moves).length;
+}
+
+function matchAll (regex, subject) {
+  const out = [];
+  let match;
+  while (match = regex.exec(subject)) {
+    out.push(match);
+  }
+  return out;
 }

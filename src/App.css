@@ -5,7 +5,6 @@
 .App-Board {
   font-size: 3em;
   border-spacing: 0;
-  flex-shrink: 0;
 }
 
 .App-Board td {
@@ -23,7 +22,14 @@
 }
 
 .App-moves {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.App-moves textarea {
   width: 100%;
+  flex: 1;
 }
 
 .App-error {
