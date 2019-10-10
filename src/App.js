@@ -158,56 +158,6 @@ function findPieces (board, symbol, fileName="", rankName="") {
 /**
  *
  * @param {string[][]} board
- * @param {string} symbol
- * @param {string} rankName
- * @param {string} fileName
- * @param {string} toFileName
- * @param {string} toRankName
- * @return {Position}
- */
-function findPiece (board, symbol, fileName="", rankName="", toFileName="", toRankName="") {
-  const out = {
-    rankName,
-    fileName,
-    rankNumber: rankNameToNumber(rankName),
-    fileNumber: fileNameToNumber(fileName),
-  };
-
-  if (!fileName && rankName) {
-    out.fileName = fileNumberToName(board[rankNameToNumber(fileName)].indexOf(symbol));
-  } else if (fileName) {
-    const fileNumber = fileNameToNumber(fileName);
-
-    for (let rankNumber = 0; rankNumber < 8; rankNumber++) {
-      if (board[rankNumber][fileNumber] === symbol) {
-        out.rankNumber = rankNumber;
-        out.rankName = rankNumberToName(rankNumber);
-        break;
-      }
-    }
-  } else {
-    for (let rankNumber = 0; rankNumber < 8; rankNumber++) {
-      const fileNumber = board[rankNumber].indexOf(symbol);
-      if (fileNumber >= 0) {
-        out.rankNumber = rankNumber;
-        out.fileNumber = fileNumber;
-        out.fileName = fileNumberToName(fileNumber);
-        out.rankName = rankNumberToName(rankNumber);
-        break;
-      }
-    }
-  }
-
-  if (!out.fileName || !out.rankName) {
-    return null;
-  }
-
-  return out;
-}
-
-/**
- *
- * @param {string[][]} board
  * @param {Position} from
  * @param {Position} to
  */
