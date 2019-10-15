@@ -45,3 +45,27 @@
   text-align: center;
   font-weight: bold;
 }
+
+@media (prefers-color-scheme: dark) {
+  .App {
+    background: #111111;
+  }
+
+  .App-Board td {
+    color: white;
+  }
+
+  .black-square {
+    background: #111111;
+  }
+
+  .white-square {
+    background: #666666;
+  }
+
+  .App-moves,
+  .App-moves textarea {
+    background: #111111;
+    color: green;
+  }
+}
