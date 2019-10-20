@@ -4,7 +4,7 @@ import { makeBoard, fileNumberToName, movePiece } from './chess';
 
 const MOVE_HISTORY = "chess_move_history";
 
-const MOVE_REGEX = /\d+\. *([^ ]+)(?: +([^ ]+))?/g;
+const MOVE_REGEX = /\d+\. *([^\s]+)(?: +([^\s]+))?/g;
 
 /** @typedef {import('./chess').Position} Position */
 
@@ -15,23 +15,44 @@ export default class App extends React.Component {
     const moves = localStorage.getItem(MOVE_HISTORY) || "";
 
     this.state = {
-      board: makeBoard(),
       moves,
-      error: null,
       moveNumber: 0,
     };
-
-    setTimeout(() => this.doMoves(moves), 10);
   }
 
-  doMoves (moves) {
-    MOVE_REGEX.lastIndex = 0;
+  updateMoves (moves) {
+    const oldCount = countMoves(this.state.moves);
+    let { moveNumber } = this.state;
+
+    // If we were at the last move update to keep up with the end
+    if (oldCount === moveNumber) {
+      moveNumber = countMoves(moves);
+    }
+
+    this.setState({ moves, moveNumber })
+  }
+
+  componentDidUpdate (prevProps, prevState) {
+    localStorage.setItem(MOVE_HISTORY, this.state.moves);
+
+    if (this.state.moves !== prevState.moves) {
+      this.setState({ moveNumber: countMoves(this.state.moves) });
+    }
+  }
+
+  render () {
+    const { moves, moveNumber } = this.state;
+
+    const moveCount = countMoves(moves);
+
     const board = makeBoard();
 
     let move;
+    let error;
     let i = 0;
 
     try {
+      MOVE_REGEX.lastIndex = 0;
       while (move = MOVE_REGEX.exec(moves)) {
         const [ _, whiteMove, blackMove] = move;
 
@@ -45,37 +66,17 @@ export default class App extends React.Component {
           movePiece(board, blackMove, true);
         }
       }
-    } catch (error) {
-      error.message = `Move ${i} - ${error.message}`;
-      this.setState({ error });
+    } catch (e) {
+      e.message = `Move ${i} - ${e.message}`;
+      error = e;
     }
-
-    this.setState({ board });
-  }
-
-  componentDidUpdate (prevProps, prevState) {
-    localStorage.setItem(MOVE_HISTORY, this.state.moves);
-
-    if (this.state.moves !== prevState.moves) {
-      this.setState({ moveNumber: countMoves(this.state.moves) });
-    }
-
-    if (this.state.moveNumber !== prevState.moveNumber) {
-      this.doMoves(this.state.moves);
-    }
-  }
-
-  render () {
-    const { moves, moveNumber } = this.state;
-
-    const moveCount = countMoves(moves);
 
     return (
       <div className="App">
         <table className="App-Board">
           <tbody>
           {
-            this.state.board.map((rank,rankNumber) => (
+            board.map((rank,rankNumber) => (
               <tr key={rankNumber + 1}>
                 {
                   rank.map((piece, fileNumber) => {
@@ -96,9 +97,9 @@ export default class App extends React.Component {
             <button onClick={() => this.setState({ moveNumber: moveCount })} disabled={moveNumber >= moveCount}>Last</button>
             Move number: {moveNumber}
           </div>
-          <textarea value={moves} onChange={e=>this.setState({ moves: e.target.value, error: null })} />
+          <textarea value={moves} onChange={e=>this.updateMoves(e.target.value)} />
         </div>
-        { this.state.error && <div className="App-error">{ this.state.error.message }</div> }
+        { error && <div className="App-error">{ error.message }</div> }
       </div>
     );
   }

@@ -243,32 +243,32 @@ function findPieces (board, symbol, fileName="", rankName="") {
         const pos = positionFromNames(fileName, rankName);
 
         if (board[pos.rankNumber][pos.fileNumber]) {
-        out.push(pos);
+            out.push(pos);
         }
     } else if (fileName) {
         const fileNumber = fileNameToNumber(fileName);
 
         for (let rankNumber = 0; rankNumber < 8; rankNumber++) {
-        if (board[rankNumber][fileNumber] === symbol) {
-            out.push(positionFromNumbers(fileNumber, rankNumber));
-        }
+            if (board[rankNumber][fileNumber] === symbol) {
+                out.push(positionFromNumbers(fileNumber, rankNumber));
+            }
         }
     } else if (rankName) {
         const rankNumber = rankNameToNumber(rankName);
 
         for (let fileNumber = 0; fileNumber < 8; fileNumber++) {
-        if (board[rankNumber][fileNumber] === symbol) {
-            out.push(positionFromNumbers(fileNumber, rankNumber));
-        }
+            if (board[rankNumber][fileNumber] === symbol) {
+                out.push(positionFromNumbers(fileNumber, rankNumber));
+            }
         }
     }
     else {
         for (let rankNumber = 0; rankNumber < 8; rankNumber++) {
-        for (let fileNumber = 0; fileNumber < 8; fileNumber++) {
-            if (board[rankNumber][fileNumber] === symbol) {
-            out.push(positionFromNumbers(fileNumber, rankNumber));
+            for (let fileNumber = 0; fileNumber < 8; fileNumber++) {
+                if (board[rankNumber][fileNumber] === symbol) {
+                    out.push(positionFromNumbers(fileNumber, rankNumber));
+                }
             }
-        }
         }
     }
 
@@ -312,10 +312,10 @@ function isValidMove (board, from, to) {
 
             if (fromColour === "white") {
                 if (from.rankName === "2" && deltaRank === -2) return true;
-                return deltaRank === -1 && Math.abs(deltaFile) <= 1;
+                return deltaRank === -1;
             } else if (fromColour === "black") {
                 if (from.rankName === "7" && deltaRank === 2) return true;
-                return deltaRank === 1 && Math.abs(deltaFile) <= 1;
+                return deltaRank === 1;
             }
 
             break;
